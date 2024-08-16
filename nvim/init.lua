@@ -1,0 +1,6 @@
+vim.loader.enable()
+require('core.base')
+require('core.commands')
+require('core.plugins')
+require('core.bindings')
+require('core.themes')
