@@ -6,7 +6,7 @@ _I Want To Work_
 
 ## Installation:
 
-Clone the repo anywhere you want and run the `setup.fish` file to get yourself settled.
+Clone the repo anywhere you want and run the `setup.sh` file to get yourself settled.
 
 ## Feedback
 
