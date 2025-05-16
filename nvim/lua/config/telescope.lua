@@ -50,7 +50,43 @@ require('telescope').setup({
     find_files = {
       -- `hidden = true` will still show the inside of `.git/` as it's not `.gitignore`d.
 			find_command = { "rg", "--files", "--hidden", "--glob", "!.git/*" },
-    }
+      layout_strategy = "vertical",
+      layout_config = {
+        vertical = {
+          width = 0.5,
+        },
+      },
+    },
+    buffers = {
+      sort_mru = true,
+      ignore_current_buffer = true,
+      layout_strategy = "vertical",
+      layout_config = {
+        vertical = {
+          width = 0.5,
+        },
+      },
+    },
+    spell_suggest = {
+      layout_strategy = "vertical",
+      layout_config = {
+        vertical = {
+          width = 0.5,
+        },
+      },
+    },
+    colorscheme = {
+      enable_preview = true,
+      layout_strategy = "vertical",
+      layout_config = {
+        vertical = {
+          width = 0.5,
+        },
+      },
+    },
   },
 })
 
+-- Enable Telescope extensions if they are installed
+pcall(require('telescope').load_extension, 'fzf')
+pcall(require('telescope').load_extension, 'ui-select')

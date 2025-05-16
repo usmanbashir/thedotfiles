@@ -27,29 +27,23 @@ nnoremap('k', 'gk')
 nnoremap("<leader>ws", ":split<CR>")
 nnoremap("<leader>vs", ":vsplit<CR>")
 
-nnoremap('<leader>e', ':NvimTreeToggle<CR>')
+--nnoremap('<leader>e', ':NvimTreeToggle<CR>')
 
 -- Save with Ctrl + S
 nnoremap('<C-s', ':w<CR>')
 
+-- Save with <leader> + w
+vim.keymap.set('n', '<leader>w', vim.cmd.w)
+
 -- Close buffer
 nnoremap('<C-c', ':q<CR>')
+
+-- Close all buffers
+vim.keymap.set('n', '<leader>q', vim.cmd.qa)
 
 -- Clear search highlight
 nnoremap('<leader>nh', ':nohlsearch<CR>')
 vnoremap('<leader>nh', ':nohlsearch<CR>')
-
--- Telescope
-nnoremap('<leader>p', '<Cmd>Telescope find_files<CR>')
---nnoremap('<leader>fhf', '<Cmd>Telescope find_files hidden=true<CR>')
-nnoremap('<leader>b', '<Cmd>Telescope buffers<CR>')
-nnoremap('<leader>g', '<Cmd>Telescope live_grep<CR>')
-nnoremap('<leader>th', '<Cmd>Telescope help_tags<CR>')
-nnoremap('<leader>ts', '<Cmd>Telescope<CR>')
-nnoremap('<leader>r', '<Cmd>Telescope oldfiles<CR>')
-nnoremap('<leader>s', '<Cmd>Telescope spell_suggest<CR>')
-nnoremap('<leader>f', '<Cmd>Telescope current_buffer_fuzzy_find<CR>')
-
 
 -- Disable arrow keys while in normal and insert modes to always
 -- force myself to keep using hjkl.
@@ -64,12 +58,5 @@ inoremap('<down>', '<nop>')
 inoremap('<left>', '<nop>')
 inoremap('<right>', '<nop>')
 
-vim.keymap.set('n', '<leader>dk', vim.diagnostic.goto_prev, { buffer = 0 })
-vim.keymap.set('n', '<leader>dj', vim.diagnostic.goto_next, { buffer = 0 })
-vim.keymap.set('n', '<leader>dl', '<cmd>Telescope diagnostics<cr>', { buffer = 0 })
-
 -- Insert the current date stamp when F5 is pressed in insert mode.
 inoremap('<F5>', '<C-R>=strftime("%a / %b %d / %Y - %T")<CR>')
-
--- GitHub Copilot
--- inoremap('<C-j>', '<Esc>')

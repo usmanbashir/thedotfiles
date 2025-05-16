@@ -119,6 +119,7 @@ cmp.setup({
         dictionary = "[Dict]",
         nvim_lua = "[NvimLua]",
         luasnip = "[LuaSnip]",
+        --copilot = "",
       }),
     })
   }

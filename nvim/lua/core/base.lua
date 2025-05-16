@@ -53,8 +53,7 @@ o.conceallevel = 2
 o.concealcursor = 'nc'
 
 
--- vim.g.copilot_no_tab_map = true
--- vim.g.copilot_assume_mapped = true
--- vim.g.copilot_tab_fallback = ""
-
 vim.opt_global.dictionary = '~/.config/dicts/en_US.dict'
+
+
+vim.opt.shortmess:append "I"
