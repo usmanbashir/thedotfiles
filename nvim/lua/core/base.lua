@@ -58,11 +58,10 @@ vim.opt_global.dictionary = '~/.config/dicts/en_US.dict'
 
 vim.opt.shortmess:append "I"
 
--- If we're running inside of a devcontainer
--- let's try to at least have clipboard copy
--- working even if the past part is too much
--- to ask for.
-if string.find(os.getenv("PATH"), "/home/vscode/") then
+-- If neoVim is running inside of a devcontainer or WSL then
+-- let's try to at least have clipboard copy working even
+-- if the paste part is too much to ask for.
+if string.find(os.getenv("PATH"), "/home/vscode/") or os.getenv("WSL_DISTRO_NAME") ~= "" then
   vim.opt.clipboard:append('unnamedplus')
 
   vim.g.clipboard = {
