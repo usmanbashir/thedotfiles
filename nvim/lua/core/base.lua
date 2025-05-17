@@ -57,3 +57,24 @@ vim.opt_global.dictionary = '~/.config/dicts/en_US.dict'
 
 
 vim.opt.shortmess:append "I"
+
+-- If we're running inside of a devcontainer
+-- let's try to at least have clipboard copy
+-- working even if the past part is too much
+-- to ask for.
+if string.find(os.getenv("PATH"), "/home/vscode/") then
+  vim.opt.clipboard:append('unnamedplus')
+
+  vim.g.clipboard = {
+    name = 'xsel',
+    copy = {
+      ['+'] = 'xsel --clipboard --input',
+      ['*'] = 'xsel --clipboard --input',
+    },
+    paste = {
+      ['+'] = 'false',
+      ['*'] = 'false',
+    },
+    cache_enabled = 0,
+  }
+end
