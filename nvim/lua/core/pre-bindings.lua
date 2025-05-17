@@ -38,8 +38,8 @@ vim.keymap.set('n', '<leader>w', vim.cmd.w)
 -- Close buffer
 nnoremap('<C-c', ':q<CR>')
 
--- Close all buffers
-vim.keymap.set('n', '<leader>q', vim.cmd.qa)
+-- Close current buffer
+vim.keymap.set('n', '<leader>q', vim.cmd.q)
 
 -- Clear search highlight
 nnoremap('<leader>nh', ':nohlsearch<CR>')
