@@ -71,10 +71,7 @@ return {
       { 'saghen/blink.cmp', } -- Dependency for kickstart.nvim LSP config
     },
     -- TODO: Extract the LSP config to a separate file
-    -- config = function() require('config/nvim-lspconfig') end
-    --
-    -- For the moment, let's borrow the LSP config from kinkstart.nvim
-    --
+    -- LSP setup, adapted from kickstart.nvim
     config = function()
       -- Brief aside: **What is LSP?**
       --
