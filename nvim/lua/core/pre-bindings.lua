@@ -27,8 +27,6 @@ nnoremap('k', 'gk')
 nnoremap("<leader>ws", ":split<CR>")
 nnoremap("<leader>vs", ":vsplit<CR>")
 
---nnoremap('<leader>e', ':NvimTreeToggle<CR>')
-
 -- Save with <leader> + w
 vim.keymap.set('n', '<leader>w', vim.cmd.w)
 
