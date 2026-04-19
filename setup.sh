@@ -12,6 +12,7 @@ DEST_FOLDER="$HOME/.config"
 missing=()
 command -v nvim >/dev/null 2>&1 || missing+=(nvim)
 command -v tmux >/dev/null 2>&1 || missing+=(tmux)
+command -v fish >/dev/null 2>&1 || missing+=(fish)
 if [ ${#missing[@]} -gt 0 ]; then
     echo "Warning: not on PATH: ${missing[*]}"
     echo "Linking configs anyway — install these before using them."
@@ -44,6 +45,23 @@ if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
     git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
 else
     echo "tpm already present"
+fi
+
+echo "Linking fish config..."
+mkdir -p "$DEST_FOLDER/fish"
+make_link "$SOURCE_FOLDER/fish/config.fish" "$DEST_FOLDER/fish/config.fish"
+make_link "$SOURCE_FOLDER/fish/fish_plugins" "$DEST_FOLDER/fish/fish_plugins"
+
+echo "Bootstrapping Fisher..."
+if command -v fish >/dev/null 2>&1; then
+    if ! fish -c 'functions -q fisher' 2>/dev/null; then
+        fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
+    else
+        echo "Fisher already present"
+    fi
+    fish -c 'fisher update'
+else
+    echo "fish not on PATH — skipping Fisher bootstrap"
 fi
 
 echo ""
