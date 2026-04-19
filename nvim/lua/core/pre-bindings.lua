@@ -29,14 +29,8 @@ nnoremap("<leader>vs", ":vsplit<CR>")
 
 --nnoremap('<leader>e', ':NvimTreeToggle<CR>')
 
--- Save with Ctrl + S
-nnoremap('<C-s', ':w<CR>')
-
 -- Save with <leader> + w
 vim.keymap.set('n', '<leader>w', vim.cmd.w)
-
--- Close buffer
-nnoremap('<C-c', ':q<CR>')
 
 -- Close current buffer
 vim.keymap.set('n', '<leader>q', vim.cmd.q)
