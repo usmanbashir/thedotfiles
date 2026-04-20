@@ -58,21 +58,21 @@ vim.opt_global.dictionary = '~/.config/dicts/en_US.dict'
 
 vim.opt.shortmess:append "I"
 
--- If neoVim is running inside of a devcontainer or WSL then
--- let's try to at least have clipboard copy working even
--- if the paste part is too much to ask for.
-if string.find(os.getenv("PATH"), "/home/vscode/") or os.getenv("WSL_DISTRO_NAME") ~= "" then
-  vim.opt.clipboard:append('unnamedplus')
+vim.opt.clipboard:append('unnamedplus')
 
+-- Inside WSL, bridge to the Windows clipboard with tools that ship with
+-- Windows 10/11 (clip.exe, powershell). Get-Clipboard returns CRLFs; the
+-- replace strips the \r so pasted text doesn't carry ^M.
+if vim.env.WSL_DISTRO_NAME then
   vim.g.clipboard = {
-    name = 'xsel',
+    name = 'WslClipboard',
     copy = {
-      ['+'] = 'xsel --clipboard --input',
-      ['*'] = 'xsel --clipboard --input',
+      ['+'] = 'clip.exe',
+      ['*'] = 'clip.exe',
     },
     paste = {
-      ['+'] = 'false',
-      ['*'] = 'false',
+      ['+'] = 'powershell.exe -NoLogo -NoProfile -Command [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+      ['*'] = 'powershell.exe -NoLogo -NoProfile -Command [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
     },
     cache_enabled = 0,
   }
