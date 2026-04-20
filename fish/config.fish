@@ -190,4 +190,11 @@ end
 function gccd --argument repo
   git clone $repo && cd (basename $repo | cut -d. -f1)
 end
+
+# Start or attach to a tmux session; defaults to the current directory's name.
+function tm --argument name
+  test -z "$name"; and set name (basename $PWD | string replace -ra '[.:\s]' '_')
+  tmux new-session -A -s $name
+end
+
 fish_add_path $HOME/.local/bin
