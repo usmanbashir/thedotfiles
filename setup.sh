@@ -64,5 +64,24 @@ else
     echo "fish not on PATH — skipping Fisher bootstrap"
 fi
 
+echo "Configuring git delta..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list git-delta >/dev/null 2>&1; then
+        brew install git-delta
+    else
+        echo "git-delta already installed"
+    fi
+else
+    echo "brew not on PATH — skipping git-delta install"
+fi
+
+DELTA_INCLUDE="$SOURCE_FOLDER/git/delta.gitconfig"
+if ! git config --global --get-all include.path 2>/dev/null | grep -qxF "$DELTA_INCLUDE"; then
+    git config --global --add include.path "$DELTA_INCLUDE"
+    echo "Added delta include to global gitconfig"
+else
+    echo "delta include already in global gitconfig"
+fi
+
 echo ""
 echo "Done."
