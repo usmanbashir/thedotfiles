@@ -93,7 +93,6 @@ cmp.setup({
     {name = 'buffer'},
     -- {name = 'spell'},
     -- {name = 'orgmode'},
-    -- {name = "copilot", group_index = 2},
     {name = 'calc'},
     -- {name = 'nvim_lua'},
     {name = 'dictionary', keyword_length = 3},
@@ -119,7 +118,6 @@ cmp.setup({
         dictionary = "[Dict]",
         nvim_lua = "[NvimLua]",
         luasnip = "[LuaSnip]",
-        --copilot = "",
       }),
     })
   }
