@@ -50,6 +50,7 @@ alias sv "sudo nvim"
 alias t 'tldr'
 
 alias ta 'tmux attach'
+alias tls 'tmux list-sessions'
 
 # Git Shortcuts
 alias g git
