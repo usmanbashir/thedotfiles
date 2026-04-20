@@ -23,9 +23,12 @@ mkdir -p "$DEST_FOLDER"
 
 make_link() {
     local src=$1 dst=$2
-    if [ -e "$dst" ] || [ -L "$dst" ]; then
-        echo "Removing existing $dst"
-        rm -rf "$dst"
+    if [ -L "$dst" ]; then
+        rm -f "$dst"
+    elif [ -e "$dst" ]; then
+        echo "Error: $dst exists and is not a symlink. Refusing to overwrite." >&2
+        echo "Move or remove it manually, then re-run setup.sh." >&2
+        exit 1
     fi
     ln -s "$src" "$dst"
 }
@@ -76,12 +79,9 @@ else
 fi
 
 DELTA_INCLUDE="$SOURCE_FOLDER/git/delta.gitconfig"
-if ! git config --global --get-all include.path 2>/dev/null | grep -qxF "$DELTA_INCLUDE"; then
-    git config --global --add include.path "$DELTA_INCLUDE"
-    echo "Added delta include to global gitconfig"
-else
-    echo "delta include already in global gitconfig"
-fi
+git config --global --unset-all include.path 'git/delta\.gitconfig$' 2>/dev/null || true
+git config --global --add include.path "$DELTA_INCLUDE"
+echo "Set delta include in global gitconfig"
 
 echo ""
 echo "Done."
