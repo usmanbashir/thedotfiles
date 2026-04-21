@@ -193,7 +193,7 @@ function gccd --argument repo
 end
 
 # Start or attach to a tmux session; defaults to the current directory's name.
-function tm --argument name
+function tn --argument name
   test -z "$name"; and set name (basename $PWD | string replace -ra '[.:\s]' '_')
   tmux new-session -A -s $name
 end
