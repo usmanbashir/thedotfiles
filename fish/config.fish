@@ -61,13 +61,11 @@ alias gc "git commit"
 alias gcm "git commit -m"
 alias gd "git diff"
 alias gdd "git diff --cached"
-alias gl "git log" # over writtin
 alias gp "git push"
 alias pull "git pull"
 alias gpf "gp --force"
 alias gph "git push heroku master"
 alias gphf "gph --force"
-alias gl "git log --oneline" # over writtin
 alias gl='git log --oneline --decorate --graph -n 20'
 alias gn "gl -n"
 alias authors "git log --pretty=format:%aN | sort | uniq -c | sort -rn"
