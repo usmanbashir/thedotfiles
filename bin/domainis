@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Usage check
+# if [ "$#" -ne 1 ]; then
+#     echo "Usage: $0 <domain>"
+#     exit 1
+# fi
+
+# domain="$1"
+
+# Combine all arguments into a single value and remove any spaces
+domain="$(echo "$*" | tr -d ' ')"
+
+# Automatically add '.com' if the domain does not contain a '.'
+if [[ "$domain" != *.* ]]; then
+    domain="${domain}.com"
+fi
+
+whois_output=$(whois "$domain")
+# Initial flag to indicate no specific info found
+specific_info_found=false
+
+# Patterns array holding the keywords we're interested in
+declare -a patterns=("Creation Date" "Updated Date" "Registry Expiry Date" "Registrar:")
+
+# Iterate over patterns to search in the whois output
+for pattern in "${patterns[@]}"; do
+    echo "$whois_output" | grep -i "$pattern" > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "$whois_output" | grep -i "$pattern"
+        specific_info_found=true
+    fi
+done
+
+# Check if any specific info was found; if not, print the whole whois output
+if [ "$specific_info_found" = false ]; then
+    echo "Specific information not found. Displaying full whois output:"
+    echo "$whois_output"
+fi
+

@@ -77,7 +77,7 @@ alias lzd "lazydocker"
 
 alias Z fzf
 
-alias d "~/bin/domainis.sh"
+alias d domainis
 
 # Roll the dice
 alias rr 'curl -s -L https://raw.githubusercontent.com/keroserene/rickrollrc/master/roll.sh | bash'

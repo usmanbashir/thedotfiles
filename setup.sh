@@ -67,6 +67,13 @@ else
     echo "fish not on PATH — skipping Fisher bootstrap"
 fi
 
+echo "Linking bin scripts..."
+mkdir -p "$HOME/.local/bin"
+for script in "$SOURCE_FOLDER"/bin/*; do
+    [ -f "$script" ] || continue
+    make_link "$script" "$HOME/.local/bin/$(basename "$script")"
+done
+
 echo "Configuring git delta..."
 if command -v brew >/dev/null 2>&1; then
     if ! brew list git-delta >/dev/null 2>&1; then
