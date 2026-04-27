@@ -52,8 +52,6 @@ alias t 'tldr'
 alias ta 'tmux attach'
 alias tls 'tmux list-sessions'
 
-alias "`" "claude -p"
-
 # Git Shortcuts
 alias g git
 alias gs "git status"
@@ -196,6 +194,27 @@ end
 function tn --argument name
   test -z "$name"; and set name (basename $PWD | string replace -ra '[.:\s]' '_')
   tmux new-session -A -s $name
+end
+
+# Run `claude -p` and append the query, response, and duration to a log.
+function `
+  set -l logfile $HOME/.local/state/claude-queries.md
+  mkdir -p (dirname $logfile)
+
+  set -l query (string join ' ' -- $argv)
+  set -l timestamp (date '+%Y-%m-%d %H:%M:%S %Z')
+  set -l start_epoch (date +%s)
+
+  set -l tmpfile (mktemp)
+  claude -p $argv | tee $tmpfile
+
+  set -l duration (math (date +%s) - $start_epoch)
+
+  printf '## %s — %ds\n\n> %s\n\n' "$timestamp" "$duration" "$query" >> $logfile
+  cat $tmpfile >> $logfile
+  printf '\n---\n\n' >> $logfile
+
+  rm $tmpfile
 end
 
 fish_add_path $HOME/.local/bin
