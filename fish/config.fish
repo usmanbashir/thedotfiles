@@ -52,6 +52,8 @@ alias t 'tldr'
 alias ta 'tmux attach'
 alias tls 'tmux list-sessions'
 
+alias "`" "claude -p"
+
 # Git Shortcuts
 alias g git
 alias gs "git status"
