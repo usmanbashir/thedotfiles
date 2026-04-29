@@ -1,0 +1,62 @@
+#!/bin/bash
+set -euo pipefail
+
+PREFIXES=("" "get" "use" "try")
+TLDS=("com" "app" "io" "dev" "co" "so")
+RDAP_BASE="https://rdap.org/domain"
+
+check_domain() {
+    local domain="$1"
+    local tmp http_code date
+    tmp=$(mktemp)
+    set +e
+    http_code=$(curl -sSL -o "$tmp" -w "%{http_code}" "$RDAP_BASE/$domain" 2>/dev/null)
+    set -e
+    http_code="${http_code:-000}"
+
+    case "$http_code" in
+        404)
+            echo "$domain,available,"
+            ;;
+        200)
+            date=$(jq -r '[.events[]? | select(.eventAction == "registration") | .eventDate] | first // ""' "$tmp" 2>/dev/null | cut -dT -f1)
+            echo "$domain,registered,$date"
+            ;;
+        *)
+            echo "$domain,unknown,"
+            ;;
+    esac
+    rm -f "$tmp"
+}
+
+names=()
+if [ "$#" -gt 0 ]; then
+    names=("$@")
+elif [ ! -t 0 ]; then
+    while IFS= read -r line; do
+        line="${line//[[:space:]]/}"
+        [ -n "$line" ] && names+=("$line")
+    done
+fi
+
+if [ "${#names[@]}" -eq 0 ]; then
+    echo "Usage: $(basename "$0") <name> [name...]" >&2
+    echo "       $(basename "$0") < names.txt" >&2
+    exit 1
+fi
+
+total=$(( ${#names[@]} * ${#PREFIXES[@]} * ${#TLDS[@]} ))
+done_count=0
+
+echo "domain,status,date"
+for name in "${names[@]}"; do
+    for prefix in "${PREFIXES[@]}"; do
+        for tld in "${TLDS[@]}"; do
+            done_count=$((done_count + 1))
+            printf "\r[%d/%d] %s%s.%s          " "$done_count" "$total" "$prefix" "$name" "$tld" >&2
+            check_domain "${prefix}${name}.${tld}"
+            sleep 0.2
+        done
+    done
+done
+printf "\r%*s\r" 60 "" >&2
