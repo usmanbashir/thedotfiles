@@ -1,12 +1,9 @@
 set fish_greeting			        # Supresses intro message
 set -U TERM xterm-256color		# Not sure I need to set the terninal type
 
-# Dep?
-set -U EDITOR nvim			      # Use NeoVim in Terminal
-set -U VISUAL nvim	          # No GUI Option, use NeoVim in Terminal
-
 # Editor (change to nvim/vim/code as you like)
-set -Ux EDITOR nvim
+set -gx EDITOR nvim
+set -gx VISUAL nvim
 
 if status is-interactive
   # Commands to run in interactive sessions can go here
@@ -96,7 +93,7 @@ end
 ### ----- Better defaults -----
 # Use bat as manpager when available (nice but optional)
 if type -q bat
-    set -Ux MANPAGER "sh -c 'col -bx | bat -l man -p'"
+    set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"
 end
 
 ### ----- fzf integration -----
@@ -124,8 +121,8 @@ end
 
 # Make fzf use fd for file lists (faster / respects ignores)
 if type -q fd
-    set -Ux FZF_DEFAULT_COMMAND "fd --hidden --follow --exclude .git"
-    set -Ux FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
+    set -gx FZF_DEFAULT_COMMAND "fd --hidden --follow --exclude .git"
+    set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
 end
 
 
@@ -219,3 +216,7 @@ function `
 end
 
 fish_add_path $HOME/.local/bin
+
+# bun
+set -gx BUN_INSTALL "$HOME/.bun"
+fish_add_path $BUN_INSTALL/bin
