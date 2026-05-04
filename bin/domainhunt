@@ -2,15 +2,21 @@
 set -euo pipefail
 
 PREFIXES=("" "get" "use" "try")
-TLDS=("com" "app" "io" "dev" "co" "so")
-RDAP_BASE="https://rdap.org/domain"
+TLDS=("com" "app" "io" "dev" "so")
+RDAP_DEFAULT="https://rdap.org/domain"
+declare -A RDAP_BASES=(
+    [io]="https://rdap.identitydigital.services/rdap/domain"
+    [so]="https://rdap.nic.so/domain"
+)
 
 check_domain() {
     local domain="$1"
-    local tmp http_code date
+    local tmp http_code date base tld
+    tld="${domain##*.}"
+    base="${RDAP_BASES[$tld]:-$RDAP_DEFAULT}"
     tmp=$(mktemp)
     set +e
-    http_code=$(curl -sSL -o "$tmp" -w "%{http_code}" "$RDAP_BASE/$domain" 2>/dev/null)
+    http_code=$(curl -sSL -o "$tmp" -w "%{http_code}" "$base/$domain" 2>/dev/null)
     set -e
     http_code="${http_code:-000}"
 
