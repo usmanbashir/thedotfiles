@@ -66,6 +66,7 @@ alias gpf "gp --force"
 alias gph "git push heroku master"
 alias gphf "gph --force"
 alias gl='git log --oneline --decorate --graph -n 20'
+alias gll='git log'
 alias gn "gl -n"
 alias authors "git log --pretty=format:%aN | sort | uniq -c | sort -rn"
 alias grv "git remote -v"
