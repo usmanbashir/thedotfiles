@@ -88,9 +88,7 @@ alias rr 'curl -s -L https://raw.githubusercontent.com/keroserene/rickrollrc/mas
 
 
 ### ----- Starship prompt -----
-if not set -q STARSHIP_SHELL
-    starship init fish | source
-end
+starship init fish | source
 
 ### ----- Better defaults -----
 # Use bat as manpager when available (nice but optional)
