@@ -90,5 +90,16 @@ git config --global --unset-all include.path 'git/delta\.gitconfig$' 2>/dev/null
 git config --global --add include.path "$DELTA_INCLUDE"
 echo "Set delta include in global gitconfig"
 
+echo "Installing clock-rs..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list clock-rs >/dev/null 2>&1; then
+        brew install clock-rs
+    else
+        echo "clock-rs already installed"
+    fi
+else
+    echo "brew not on PATH — skipping clock-rs install"
+fi
+
 echo ""
 echo "Done."
