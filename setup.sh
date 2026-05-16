@@ -85,10 +85,10 @@ else
     echo "brew not on PATH — skipping git-delta install"
 fi
 
-DELTA_INCLUDE="$SOURCE_FOLDER/git/delta.gitconfig"
-git config --global --unset-all include.path 'git/delta\.gitconfig$' 2>/dev/null || true
-git config --global --add include.path "$DELTA_INCLUDE"
-echo "Set delta include in global gitconfig"
+GIT_INCLUDE="$SOURCE_FOLDER/git/gitconfig"
+git config --global --unset-all include.path 'git/(delta\.)?gitconfig$' 2>/dev/null || true
+git config --global --add include.path "$GIT_INCLUDE"
+echo "Set dotfiles git include in global gitconfig"
 
 echo "Installing clock-rs..."
 if command -v brew >/dev/null 2>&1; then

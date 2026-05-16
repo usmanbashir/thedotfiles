@@ -11,3 +11,6 @@
 
 [merge]
     conflictStyle = zdiff3
+
+[pull]
+    ff = only
