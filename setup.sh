@@ -74,6 +74,10 @@ for script in "$SOURCE_FOLDER"/bin/*; do
     make_link "$script" "$HOME/.local/bin/$(basename "$script")"
 done
 
+echo "Linking Claude Code statusline..."
+mkdir -p "$HOME/.claude"
+make_link "$SOURCE_FOLDER/claude/statusline.sh" "$HOME/.claude/statusline-command.sh"
+
 echo "Configuring git delta..."
 if command -v brew >/dev/null 2>&1; then
     if ! brew list git-delta >/dev/null 2>&1; then
