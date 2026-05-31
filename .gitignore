@@ -3,3 +3,6 @@ fish/completions/
 fish/conf.d/
 fish/fish_variables
 fish/themes/
+
+# Python bytecode cache (e.g. from the bin/*-stream TTS helpers)
+__pycache__/
