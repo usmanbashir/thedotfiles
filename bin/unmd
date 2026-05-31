@@ -1,0 +1,92 @@
+#!/usr/bin/env perl
+# unmd — strip Markdown formatting, leaving plain prose.
+#
+# Reads Markdown from arguments or stdin and writes plain text to stdout, with
+# the syntax that sounds wrong when read aloud removed: headings, emphasis,
+# links (kept as their text, URL dropped), images, blockquotes, list markers,
+# and HTML tags. Fenced code blocks are dropped entirely — reading source code
+# aloud is rarely useful.
+#
+# It's the markdown-stripping step behind `tts` and `narrate` (which strip by
+# default; pass --raw to skip it), but it's a normal filter you can use alone:
+#
+#   unmd < README.md            # plain text on stdout
+#   unmd "# Heading"            # from arguments
+#   cat notes.md | unmd | tts   # speak a Markdown file cleanly
+#
+# Pandoc does this more thoroughly but is a heavyweight (>100MB) dependency;
+# this covers the common constructs with just Perl, which is already everywhere.
+use strict;
+use warnings;
+
+if (grep { $_ eq '-h' || $_ eq '--help' } @ARGV) {
+    print <<'EOF';
+Usage: unmd [TEXT...]
+
+Strip Markdown formatting and print plain text. With no TEXT, reads stdin.
+
+  unmd < README.md
+  unmd "# Heading"
+  cat notes.md | unmd | tts
+EOF
+    exit 0;
+}
+
+# Text from args (joined with spaces), else slurp stdin.
+my $t;
+if (@ARGV) {
+    $t = join ' ', @ARGV;
+} else {
+    local $/;
+    $t = <STDIN>;
+    $t = '' unless defined $t;
+}
+
+# --- Block constructs that span lines (run before the inline pass) ---
+
+# Fenced code blocks (``` and ~~~), including the fence lines themselves.
+$t =~ s/^[ \t]*```[^\n]*\n.*?^[ \t]*```[^\n]*\n?//mgs;
+$t =~ s/^[ \t]*~~~[^\n]*\n.*?^[ \t]*~~~[^\n]*\n?//mgs;
+
+# Reference-link definition lines:  [id]: https://example.com "title"
+$t =~ s/^[ \t]*\[[^\]]+\]:[ \t]*\S+[^\n]*\n?//mg;
+
+# --- Inline constructs ---
+
+# Images first (so the link rule doesn't strip the alt-text off a stray "!").
+$t =~ s/!\[[^\]]*\]\([^)]*\)//g;       # inline image
+$t =~ s/!\[[^\]]*\]\[[^\]]*\]//g;      # reference image
+$t =~ s/\[([^\]]*)\]\([^)]*\)/$1/g;    # inline link  -> text
+$t =~ s/\[([^\]]+)\]\[[^\]]*\]/$1/g;   # reference link -> text
+$t =~ s/<https?:\/\/[^>\s]+>//g;       # autolink <https://...>
+$t =~ s/`([^`]*)`/$1/g;                # inline `code`
+$t =~ s/<\/?[a-zA-Z][^>]*>//g;         # HTML tags
+
+# --- Line-leading markers (order matters: quote, then heading, then rule, then list) ---
+
+$t =~ s/^[ \t]*(?:>[ \t]?)+//mg;            # blockquote markers (any depth)
+$t =~ s/^[ \t]*#{1,6}(?:[ \t]+|$)//mg;      # ATX heading openers (require space or EOL)
+$t =~ s/[ \t]+#+[ \t]*$//mg;                # ATX heading closing hashes
+$t =~ s/^[ \t]*=+[ \t]*(?:\n|$)//mg;        # setext H1 underline
+$t =~ s/^[ \t]*([-*_])[ \t]*(?:\1[ \t]*){2,}(?:\n|$)//mg;  # thematic break / setext H2
+$t =~ s/^[ \t]*[-*+][ \t]+//mg;             # unordered list bullets
+$t =~ s/^[ \t]*\d+\.[ \t]+//mg;             # ordered list numbers
+
+# --- Emphasis (strike/bold before italic; underscores only at word boundaries) ---
+
+$t =~ s/~~([^~]+)~~/$1/g;
+$t =~ s/\*\*([^*]+)\*\*/$1/g;
+$t =~ s/(?<!\w)__([^_]+)__(?!\w)/$1/g;
+$t =~ s/\*([^*]+)\*/$1/g;
+$t =~ s/(?<!\w)_([^_]+)_(?!\w)/$1/g;
+
+# --- Whitespace cleanup ---
+
+$t =~ s/^[^\S\n]+//mg;     # leading horizontal whitespace per line
+$t =~ s/[^\S\n]+$//mg;     # trailing horizontal whitespace per line
+$t =~ s/[^\S\n]{2,}/ /g;   # squeeze runs left behind by removed markup
+$t =~ s/\n{3,}/\n\n/g;     # collapse blank-line runs to a single blank line
+$t =~ s/\A\n+//;           # leading blank lines
+$t =~ s/\n+\z//;           # trailing newlines
+
+print $t eq '' ? '' : "$t\n";
