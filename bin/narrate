@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# narrate — read text aloud with Kokoro (higher-quality, natural TTS)
+#
+# Reads text from arguments or stdin and streams it to the speakers, or saves
+# audio with -o (WAV or MP3, chosen by extension). Kokoro sounds more natural
+# than Piper but is slower, so it's for long-form listening. For quick everyday
+# speech use `tts` (Piper).
+#
+# Setup is handled by setup.sh (uv tool install kokoro-tts + model download).
+# The Kokoro model and voices live in $KOKORO_DIR, and the tool is run from
+# there because it loads kokoro-v1.0.onnx / voices-v1.0.bin from the working
+# directory.
+set -euo pipefail
+
+VOICE="${NARRATE_VOICE:-af_heart}"
+LANG_CODE="${NARRATE_LANG:-en-us}"
+SPEED="${NARRATE_SPEED:-1.0}"
+KOKORO_DIR="${KOKORO_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kokoro}"
+OUT=""
+
+usage() {
+    cat <<EOF
+Usage: narrate [-v VOICE] [-l LANG] [-s SPEED] [-o FILE] [TEXT...]
+
+Read TEXT aloud with Kokoro, or save it to FILE (.wav/.mp3) with -o.
+With no TEXT, reads from stdin.
+
+Options:
+  -v VOICE   Kokoro voice (default: $VOICE; or set \$NARRATE_VOICE)
+  -l LANG    Language code (default: $LANG_CODE; or set \$NARRATE_LANG)
+  -s SPEED   Speech speed (default: $SPEED; or set \$NARRATE_SPEED)
+  -o FILE    Save to FILE (.wav or .mp3) instead of playing
+  -h         Show this help
+
+Examples:
+  narrate "Once upon a time..."
+  wl-paste | narrate                 # read the clipboard aloud
+  narrate -v am_michael "Hello."
+  narrate -o chapter1.mp3 < chapter1.txt
+EOF
+}
+
+while getopts ":v:l:s:o:h" opt; do
+    case "$opt" in
+        v) VOICE="$OPTARG" ;;
+        l) LANG_CODE="$OPTARG" ;;
+        s) SPEED="$OPTARG" ;;
+        o) OUT="$OPTARG" ;;
+        h) usage; exit 0 ;;
+        \?) echo "narrate: unknown option -$OPTARG" >&2; usage >&2; exit 2 ;;
+        :) echo "narrate: option -$OPTARG requires an argument" >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+command -v kokoro-tts >/dev/null 2>&1 || {
+    echo "narrate: kokoro-tts not found. Run the dotfiles setup.sh (Linux) to install it." >&2
+    exit 1
+}
+if [ ! -f "$KOKORO_DIR/kokoro-v1.0.onnx" ] || [ ! -f "$KOKORO_DIR/voices-v1.0.bin" ]; then
+    echo "narrate: Kokoro model files missing in $KOKORO_DIR. Run setup.sh to download them." >&2
+    exit 1
+fi
+
+# Text from args, else stdin.
+if [ "$#" -gt 0 ]; then
+    text="$*"
+else
+    text="$(cat)"
+fi
+[ -n "${text//[[:space:]]/}" ] || { echo "narrate: no text given" >&2; exit 2; }
+
+# kokoro-tts loads its model/voices from the current directory, so run it from
+# $KOKORO_DIR; output paths must therefore be absolute.
+opts=(--voice "$VOICE" --lang "$LANG_CODE" --speed "$SPEED")
+
+if [ -n "$OUT" ]; then
+    case "$OUT" in
+        /*) out_abs="$OUT" ;;
+        *)  out_abs="$PWD/$OUT" ;;
+    esac
+    case "$OUT" in
+        *.mp3) fmt=mp3 ;;
+        *)     fmt=wav ;;
+    esac
+    args=(- "$out_abs" --format "$fmt" "${opts[@]}")
+else
+    args=(- --stream "${opts[@]}")
+fi
+
+# kokoro-tts has no quiet flag: it spams status text to stdout and a progress
+# spinner to stderr. Audio always goes to the file or the sound device (never
+# stdout), so capture both streams and only replay them if the run fails —
+# keeps success silent without swallowing real errors.
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+if ! printf '%s' "$text" | ( cd "$KOKORO_DIR" && kokoro-tts "${args[@]}" ) >"$log" 2>&1; then
+    cat "$log" >&2
+    exit 1
+fi

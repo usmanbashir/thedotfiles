@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# tts — speak text aloud with Piper (fast, local neural TTS)
+#
+# Reads text from arguments or stdin and plays it through the speakers, or
+# writes a WAV with -o. Piper is quick on CPU, so this is the everyday
+# "say this" command. For more natural long-form narration use `narrate`
+# (Kokoro) instead.
+#
+# Install/setup is handled by the repo's setup.sh (uv tool install piper-tts +
+# voice download). Voice models live in $TTS_DATA_DIR.
+set -euo pipefail
+
+VOICE="${TTS_VOICE:-en_US-lessac-high}"
+DATA_DIR="${TTS_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/piper/voices}"
+OUT=""
+
+usage() {
+    cat <<EOF
+Usage: tts [-v VOICE] [-o FILE] [TEXT...]
+
+Speak TEXT aloud with Piper, or save it to FILE with -o.
+With no TEXT, reads from stdin.
+
+Options:
+  -v VOICE   Piper voice name (default: $VOICE; or set \$TTS_VOICE)
+  -o FILE    Write a WAV to FILE instead of playing
+  -h         Show this help
+
+Examples:
+  tts "Build finished."
+  echo "Hello there" | tts
+  tts -v en_GB-alan-medium "Good evening."
+  tts -o note.wav "Saved to a file."
+EOF
+}
+
+while getopts ":v:o:h" opt; do
+    case "$opt" in
+        v) VOICE="$OPTARG" ;;
+        o) OUT="$OPTARG" ;;
+        h) usage; exit 0 ;;
+        \?) echo "tts: unknown option -$OPTARG" >&2; usage >&2; exit 2 ;;
+        :) echo "tts: option -$OPTARG requires an argument" >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+command -v piper >/dev/null 2>&1 || {
+    echo "tts: piper not found. Run the dotfiles setup.sh (Linux) to install it." >&2
+    exit 1
+}
+
+# Text from args, else stdin.
+if [ "$#" -gt 0 ]; then
+    text="$*"
+else
+    text="$(cat)"
+fi
+[ -n "${text//[[:space:]]/}" ] || { echo "tts: no text given" >&2; exit 2; }
+
+if [ -n "$OUT" ]; then
+    piper -m "$VOICE" --data-dir "$DATA_DIR" -f "$OUT" -- "$text"
+    exit 0
+fi
+
+# Play: synthesize to a temp WAV (its header carries the sample rate, so any
+# voice quality works) then play with whatever audio player is available.
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+piper -m "$VOICE" --data-dir "$DATA_DIR" -f "$tmp" -- "$text"
+
+for player in pw-play paplay aplay ffplay; do
+    command -v "$player" >/dev/null 2>&1 || continue
+    case "$player" in
+        ffplay) ffplay -autoexit -nodisp -loglevel quiet "$tmp" ;;
+        *)      "$player" "$tmp" ;;
+    esac
+    exit 0
+done
+
+echo "tts: no audio player found (tried pw-play paplay aplay ffplay)." >&2
+exit 1

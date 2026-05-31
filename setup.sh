@@ -105,5 +105,68 @@ else
     echo "brew not on PATH — skipping clock-rs install"
 fi
 
+# Local TTS engines for the `tts` (Piper) and `narrate` (Kokoro) bin scripts.
+# Linux-only: macOS has a native `say`, and the engines are CPU/Linux-centric.
+# Both run through uv-managed isolated tool envs pinned to Python 3.12
+# (kokoro-tts requires <3.13).
+echo "Installing TTS engines (Piper + Kokoro)..."
+if [ "$(uname -s)" = "Linux" ]; then
+    if command -v brew >/dev/null 2>&1; then
+        if ! command -v uv >/dev/null 2>&1; then
+            brew install uv
+        else
+            echo "uv already installed"
+        fi
+
+        # espeak-ng handles phonemization (Piper embeds it; Kokoro can use it).
+        # Bluefin ships it in the base image, so only nudge if it's absent.
+        command -v espeak-ng >/dev/null 2>&1 || \
+            echo "Note: espeak-ng not found — layer it or 'brew install espeak-ng' for best phonemization."
+
+        PIPER_VOICES="${XDG_DATA_HOME:-$HOME/.local/share}/piper/voices"
+        KOKORO_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kokoro"
+
+        # Piper — fast/everyday (`tts`)
+        if ! command -v piper >/dev/null 2>&1; then
+            uv tool install --python 3.12 piper-tts
+        else
+            echo "piper already installed"
+        fi
+        mkdir -p "$PIPER_VOICES"
+        if [ ! -f "$PIPER_VOICES/en_US-lessac-high.onnx" ]; then
+            echo "Downloading Piper voice en_US-lessac-high..."
+            uvx --python 3.12 --from piper-tts python -m piper.download_voices \
+                en_US-lessac-high --data-dir "$PIPER_VOICES"
+        else
+            echo "Piper voice en_US-lessac-high already present"
+        fi
+
+        # Kokoro — quality/long-form (`narrate`)
+        if ! command -v kokoro-tts >/dev/null 2>&1; then
+            uv tool install --python 3.12 kokoro-tts
+        else
+            echo "kokoro-tts already installed"
+        fi
+        mkdir -p "$KOKORO_DIR"
+        KOKORO_REL="https://github.com/nazdridoy/kokoro-tts/releases/download/v1.0.0"
+        if [ ! -f "$KOKORO_DIR/kokoro-v1.0.onnx" ]; then
+            echo "Downloading Kokoro model (~310MB)..."
+            curl -fSL -o "$KOKORO_DIR/kokoro-v1.0.onnx" "$KOKORO_REL/kokoro-v1.0.onnx"
+        else
+            echo "Kokoro model already present"
+        fi
+        if [ ! -f "$KOKORO_DIR/voices-v1.0.bin" ]; then
+            echo "Downloading Kokoro voices..."
+            curl -fSL -o "$KOKORO_DIR/voices-v1.0.bin" "$KOKORO_REL/voices-v1.0.bin"
+        else
+            echo "Kokoro voices already present"
+        fi
+    else
+        echo "brew not on PATH — skipping TTS install"
+    fi
+else
+    echo "Not Linux — skipping TTS install (use the native 'say' on macOS)"
+fi
+
 echo ""
 echo "Done."
