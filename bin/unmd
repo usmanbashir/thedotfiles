@@ -18,6 +18,9 @@
 # this covers the common constructs with just Perl, which is already everywhere.
 use strict;
 use warnings;
+use utf8;                                # Unicode literals in the entity map below
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
 
 if (grep { $_ eq '-h' || $_ eq '--help' } @ARGV) {
     print <<'EOF';
@@ -35,8 +38,10 @@ EOF
 # Text from args (joined with spaces), else slurp stdin.
 my $t;
 if (@ARGV) {
-    $t = join ' ', @ARGV;
+    require Encode;
+    $t = join ' ', map { Encode::decode('UTF-8', $_) } @ARGV;
 } else {
+    binmode STDIN, ':encoding(UTF-8)';
     local $/;
     $t = <STDIN>;
     $t = '' unless defined $t;
@@ -59,6 +64,15 @@ $t =~ s/!\[[^\]]*\]\[[^\]]*\]//g;      # reference image
 $t =~ s/\[([^\]]*)\]\([^)]*\)/$1/g;    # inline link  -> text
 $t =~ s/\[([^\]]+)\]\[[^\]]*\]/$1/g;   # reference link -> text
 $t =~ s/<https?:\/\/[^>\s]+>//g;       # autolink <https://...>
+# Bare URLs -> their host, so TTS doesn't spell out the whole path. Grab the
+# non-space token, peel trailing sentence punctuation (kept), drop from the
+# first /?# on, and keep just the host.
+$t =~ s{https?://(\S+)}{
+    my $rest = $1;
+    my $trail = ($rest =~ s/([)\].,;:!?'"]+)\z//) ? $1 : '';
+    (my $host = $rest) =~ s![/?#].*\z!!s;
+    $host . $trail;
+}ge;
 $t =~ s/`([^`]*)`/$1/g;                # inline `code`
 $t =~ s/<\/?[a-zA-Z][^>]*>//g;         # HTML tags
 
@@ -71,6 +85,7 @@ $t =~ s/^[ \t]*=+[ \t]*(?:\n|$)//mg;        # setext H1 underline
 $t =~ s/^[ \t]*([-*_])[ \t]*(?:\1[ \t]*){2,}(?:\n|$)//mg;  # thematic break / setext H2
 $t =~ s/^[ \t]*[-*+][ \t]+//mg;             # unordered list bullets
 $t =~ s/^[ \t]*\d+\.[ \t]+//mg;             # ordered list numbers
+$t =~ s/^[ \t]*\[[ xX]\][ \t]*//mg;         # task-list checkbox left after a bullet
 
 # --- Emphasis (strike/bold before italic; underscores only at word boundaries) ---
 
@@ -79,6 +94,19 @@ $t =~ s/\*\*([^*]+)\*\*/$1/g;
 $t =~ s/(?<!\w)__([^_]+)__(?!\w)/$1/g;
 $t =~ s/\*([^*]+)\*/$1/g;
 $t =~ s/(?<!\w)_([^_]+)_(?!\w)/$1/g;
+
+# --- HTML entities -> characters (after tag removal so &lt; can't form a tag) ---
+
+my %ent = (
+    amp => '&', lt => '<', gt => '>', quot => '"', apos => "'",
+    nbsp => ' ', mdash => '—', ndash => '–', hellip => '…',
+    copy => '©', reg => '®', trade => '™', deg => '°', middot => '·',
+    times => '×', laquo => '«', raquo => '»',
+    lsquo => '‘', rsquo => '’', ldquo => '“', rdquo => '”',
+);
+$t =~ s/&#x([0-9a-fA-F]+);/chr hex $1/ge;                              # &#x41;
+$t =~ s/&#(\d+);/chr $1/ge;                                           # &#65;
+$t =~ s/&([a-zA-Z][a-zA-Z0-9]*);/exists $ent{$1} ? $ent{$1} : "&$1;"/ge;  # &amp;
 
 # --- Whitespace cleanup ---
 

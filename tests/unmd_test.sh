@@ -72,6 +72,28 @@ run_case "collapse blank lines"   $'Para one.\n\n\n\nPara two.'    $'Para one.\n
 run_case "only markup -> empty"   $'***'                           $''
 run_args "args form"              $'Hi there'                      '# Hi there'
 
+# HTML entities -> their characters
+run_case "entity amp/lt/gt"       $'Tom &amp; Jerry, 5 &lt; 10 &gt; 3' $'Tom & Jerry, 5 < 10 > 3'
+run_case "entity quot/apos/num"   $'&quot;hi&quot; it&#39;s'        $'"hi" it\'s'
+run_case "entity nbsp -> space"   $'a&nbsp;&nbsp;b'                 $'a b'
+run_case "entity em dash"         $'a &mdash; b'                    $'a — b'
+run_case "entity numeric hellip"  $'wait&#8230;'                    $'wait…'
+run_case "entity hex"             $'&#x41;&#x42;'                   $'AB'
+run_case "entity unknown kept"    $'A &foobar; B'                   $'A &foobar; B'
+run_case "entity double amp"      $'&amp;lt;'                       $'&lt;'
+run_case "utf8 passthrough"       $'café résumé —'                  $'café résumé —'
+
+# Bare URLs -> host
+run_case "bare url with path"     $'See https://example.com/foo/bar for details.' \
+                                  $'See example.com for details.'
+run_case "bare url trailing dot"  $'Go to https://example.com.'    $'Go to example.com.'
+run_case "bare url in parens"     $'(see https://example.com/p) ok' $'(see example.com) ok'
+run_case "bare url no path"       $'Visit https://github.com now'   $'Visit github.com now'
+
+# Task-list checkboxes
+run_case "task list checkboxes"   $'- [ ] todo\n- [x] done\n- [X] also' \
+                                  $'todo\ndone\nalso'
+
 echo "-----"
 echo "passed: $pass  failed: $fail"
 [ "$fail" -eq 0 ]
