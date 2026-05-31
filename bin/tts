@@ -12,31 +12,35 @@ set -euo pipefail
 
 VOICE="${TTS_VOICE:-en_US-lessac-high}"
 DATA_DIR="${TTS_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/piper/voices}"
+SPEED="${TTS_SPEED:-1.0}"
 OUT=""
 
 usage() {
     cat <<EOF
-Usage: tts [-v VOICE] [-o FILE] [TEXT...]
+Usage: tts [-v VOICE] [-s SPEED] [-o FILE] [TEXT...]
 
 Speak TEXT aloud with Piper, or save it to FILE with -o.
 With no TEXT, reads from stdin.
 
 Options:
   -v VOICE   Piper voice name (default: $VOICE; or set \$TTS_VOICE)
+  -s SPEED   Playback speed multiplier, e.g. 1.5, 2, 3 (default: $SPEED; or set \$TTS_SPEED)
   -o FILE    Write a WAV to FILE instead of playing
   -h         Show this help
 
 Examples:
   tts "Build finished."
   echo "Hello there" | tts
+  tts -s 2 "Read this twice as fast."
   tts -v en_GB-alan-medium "Good evening."
   tts -o note.wav "Saved to a file."
 EOF
 }
 
-while getopts ":v:o:h" opt; do
+while getopts ":v:s:o:h" opt; do
     case "$opt" in
         v) VOICE="$OPTARG" ;;
+        s) SPEED="$OPTARG" ;;
         o) OUT="$OPTARG" ;;
         h) usage; exit 0 ;;
         \?) echo "tts: unknown option -$OPTARG" >&2; usage >&2; exit 2 ;;
@@ -44,6 +48,13 @@ while getopts ":v:o:h" opt; do
     esac
 done
 shift $((OPTIND - 1))
+
+# Piper speed is the inverse "phoneme length scale" (< 1 is faster), so convert
+# the friendly speed multiplier to a length scale of 1/SPEED.
+length_scale="$(awk -v s="$SPEED" 'BEGIN { if (s+0 <= 0) exit 1; printf "%.6f", 1/s }')" || {
+    echo "tts: -s SPEED must be a positive number (got '$SPEED')" >&2
+    exit 2
+}
 
 command -v piper >/dev/null 2>&1 || {
     echo "tts: piper not found. Run the dotfiles setup.sh (Linux) to install it." >&2
@@ -59,7 +70,7 @@ fi
 [ -n "${text//[[:space:]]/}" ] || { echo "tts: no text given" >&2; exit 2; }
 
 if [ -n "$OUT" ]; then
-    piper -m "$VOICE" --data-dir "$DATA_DIR" -f "$OUT" -- "$text"
+    piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" -f "$OUT" -- "$text"
     exit 0
 fi
 
@@ -67,7 +78,7 @@ fi
 # voice quality works) then play with whatever audio player is available.
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
-piper -m "$VOICE" --data-dir "$DATA_DIR" -f "$tmp" -- "$text"
+piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" -f "$tmp" -- "$text"
 
 for player in pw-play paplay aplay ffplay; do
     command -v "$player" >/dev/null 2>&1 || continue
