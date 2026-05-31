@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""kokoro-stream — gapless Kokoro TTS streaming for `narrate`.
+"""piper-stream — sentence-by-sentence Piper streaming with a read-along view.
 
-Generates audio sentence-by-sentence with kokoro_onnx and writes raw signed
-16-bit little-endian PCM (24 kHz, mono) to stdout, so the caller can pipe it
-into one continuously-open player (`paplay --raw`) for gap-free playback.
-This avoids the kokoro-tts CLI's --stream gaps, which come from opening a new
-sd.play()/sd.wait() per ~paragraph chunk.
+Loads a Piper voice once and synthesizes sentence by sentence, writing raw
+signed 16-bit little-endian PCM to stdout for a continuously-open player
+(`paplay --raw`). `tts` uses this for its --show-text path: a plain
+`piper --output-raw` already streams audio fine, but it can't reveal sentence
+boundaries, so the read-along needs per-sentence control with the model kept
+loaded (a shell loop would reload the model — ~3.5s — every sentence).
 
-Reads UTF-8 text from stdin. Must run under a Python that has kokoro_onnx
-(the kokoro-tts tool venv); `narrate` invokes it with that interpreter.
-The output sample rate is fixed at 24000 Hz (kokoro_onnx SAMPLE_RATE); the
-caller must tell its player the same rate.
+Reads UTF-8 text from stdin. Must run under a Python that has the `piper`
+package (the piper-tts tool venv); `tts` invokes it with that interpreter.
+The sample rate comes from the voice; print it for the caller with --print-rate
+or just read it from the voice JSON (tts does the latter).
 """
 import argparse
 import re
@@ -48,11 +49,14 @@ def open_display(enabled):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, help="path to kokoro-v1.0.onnx")
-    parser.add_argument("--voices", required=True, help="path to voices-v1.0.bin")
-    parser.add_argument("--voice", default="af_heart")
-    parser.add_argument("--lang", default="en-us")
-    parser.add_argument("--speed", type=float, default=1.0)
+    parser.add_argument("--model", required=True, help="path to the voice .onnx file")
+    parser.add_argument("--config", help="path to the voice .onnx.json (defaults to model+.json)")
+    parser.add_argument(
+        "--length-scale",
+        type=float,
+        default=1.0,
+        help="phoneme length scale; < 1 is faster (inverse of speed)",
+    )
     parser.add_argument(
         "--show-text",
         action="store_true",
@@ -61,12 +65,11 @@ def main():
     args = parser.parse_args()
 
     try:
-        import numpy as np
-        from kokoro_onnx import Kokoro
+        from piper import PiperVoice, SynthesisConfig
     except ImportError as exc:
         sys.stderr.write(
-            "kokoro-stream: missing kokoro_onnx/numpy — run me under the "
-            "kokoro-tts venv (narrate does this automatically): %s\n" % exc
+            "piper-stream: missing the piper package — run me under the "
+            "piper-tts venv (tts does this automatically): %s\n" % exc
         )
         return 1
 
@@ -75,19 +78,16 @@ def main():
     if not sentences:
         return 0
 
-    kokoro = Kokoro(args.model, args.voices)
+    voice = PiperVoice.load(args.model, config_path=args.config)
+    syn = SynthesisConfig(length_scale=args.length_scale)
     show = open_display(args.show_text)
     out = sys.stdout.buffer
     try:
         for sentence in sentences:
             show(sentence)
-            samples, _ = kokoro.create(
-                sentence, voice=args.voice, speed=args.speed, lang=args.lang
-            )
-            # float32 in [-1, 1] -> signed 16-bit little-endian PCM
-            pcm = (np.clip(samples, -1.0, 1.0) * 32767.0).astype("<i2")
-            out.write(pcm.tobytes())
-            out.flush()
+            for chunk in voice.synthesize(sentence, syn_config=syn):
+                out.write(chunk.audio_int16_bytes)
+                out.flush()
     except BrokenPipeError:
         # Player exited (e.g. Ctrl-C) — stop quietly.
         return 0

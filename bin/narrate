@@ -18,21 +18,23 @@ SPEED="${NARRATE_SPEED:-1.0}"
 KOKORO_DIR="${KOKORO_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kokoro}"
 OUT=""
 RAW=0
+SHOW_TEXT=0
 
 usage() {
     cat <<EOF
-Usage: narrate [-v VOICE] [-l LANG] [-s SPEED] [-o FILE] [TEXT...]
+Usage: narrate [-v VOICE] [-l LANG] [-s SPEED] [-o FILE] [-T] [TEXT...]
 
 Read TEXT aloud with Kokoro, or save it to FILE (.wav/.mp3) with -o.
 With no TEXT, reads from stdin.
 
 Options:
-  -v VOICE   Kokoro voice (default: $VOICE; or set \$NARRATE_VOICE)
-  -l LANG    Language code (default: $LANG_CODE; or set \$NARRATE_LANG)
-  -s SPEED   Speech speed (default: $SPEED; or set \$NARRATE_SPEED)
-  -o FILE    Save to FILE (.wav or .mp3) instead of playing
-  -R, --raw  Read TEXT verbatim (skip the default Markdown stripping)
-  -h         Show this help
+  -v VOICE       Kokoro voice (default: $VOICE; or set \$NARRATE_VOICE)
+  -l LANG        Language code (default: $LANG_CODE; or set \$NARRATE_LANG)
+  -s SPEED       Speech speed (default: $SPEED; or set \$NARRATE_SPEED)
+  -o FILE        Save to FILE (.wav or .mp3) instead of playing
+  -R, --raw      Read TEXT verbatim (skip the default Markdown stripping)
+  -T, --show-text  Print each sentence as it's spoken (read-along view)
+  -h             Show this help
 
 By default TEXT is run through \`unmd\` to strip Markdown (headings, **bold**,
 links, fenced code, etc.) so the syntax isn't read aloud. Use --raw to disable.
@@ -41,28 +43,31 @@ Examples:
   narrate "Once upon a time..."
   wl-paste | narrate                 # read the clipboard aloud
   narrate < README.md                # Markdown read aloud, syntax stripped
+  narrate -T < article.txt           # follow along as it reads
   narrate --raw "Keep the * asterisks *."
   narrate -v am_michael "Hello."
   narrate -o chapter1.mp3 < chapter1.txt
 EOF
 }
 
-# Accept --raw as a long alias for -R (getopts only handles short options).
+# Accept long options as aliases for short ones (getopts only handles short).
 for arg do
     shift
     case "$arg" in
-        --raw) set -- "$@" -R ;;
-        *)     set -- "$@" "$arg" ;;
+        --raw)       set -- "$@" -R ;;
+        --show-text) set -- "$@" -T ;;
+        *)           set -- "$@" "$arg" ;;
     esac
 done
 
-while getopts ":v:l:s:o:Rh" opt; do
+while getopts ":v:l:s:o:RTh" opt; do
     case "$opt" in
         v) VOICE="$OPTARG" ;;
         l) LANG_CODE="$OPTARG" ;;
         s) SPEED="$OPTARG" ;;
         o) OUT="$OPTARG" ;;
         R) RAW=1 ;;
+        T) SHOW_TEXT=1 ;;
         h) usage; exit 0 ;;
         \?) echo "narrate: unknown option -$OPTARG" >&2; usage >&2; exit 2 ;;
         :) echo "narrate: option -$OPTARG requires an argument" >&2; exit 2 ;;
@@ -149,17 +154,28 @@ elif command -v aplay >/dev/null 2>&1; then
     player=(aplay -q -r "$rate" -f S16_LE -c 1 -t raw -)
 fi
 
+# --show-text is a kokoro-stream flag only (the kokoro-tts CLI used for -o and
+# the fallback doesn't accept it), so keep it out of the shared $opts.
+helper_opts=("${opts[@]}")
+[ "$SHOW_TEXT" -eq 1 ] && helper_opts+=(--show-text)
+
 if [ -x "$helper" ] && [ -x "$venv_python" ] && [ "${#player[@]}" -gt 0 ]; then
     if ! printf '%s' "$text" \
         | "$venv_python" "$helper" \
             --model "$KOKORO_DIR/kokoro-v1.0.onnx" \
             --voices "$KOKORO_DIR/voices-v1.0.bin" \
-            "${opts[@]}" 2>"$log" \
+            "${helper_opts[@]}" 2>"$log" \
         | "${player[@]}" 2>>"$log"; then
         cat "$log" >&2
         exit 1
     fi
     exit 0
+fi
+
+# If --show-text was requested but we can't use the helper, say so (the CLI
+# fallback below can't reveal sentences).
+if [ "$SHOW_TEXT" -eq 1 ]; then
+    echo "narrate: --show-text needs kokoro-stream + the kokoro-tts venv; falling back without it." >&2
 fi
 
 # Fallback: kokoro-tts CLI --stream (chunked, small gaps between chunks).
