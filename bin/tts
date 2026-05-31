@@ -74,13 +74,39 @@ if [ -n "$OUT" ]; then
     exit 0
 fi
 
-# Play: synthesize to a temp WAV (its header carries the sample rate, so any
-# voice quality works) then play with whatever audio player is available.
+# Play. Prefer true streaming: pipe Piper's raw PCM straight into a player so
+# audio starts as the first sentence is synthesized, instead of waiting for the
+# whole text to render. paplay/aplay read raw PCM from stdin; pw-play/ffplay
+# don't, so they fall back to a buffered temp WAV below.
+
+# Raw PCM has no header, so the player needs the voice's sample rate, which
+# lives in the voice's JSON config (defaults to 22050 if it can't be read).
+rate=22050
+cfg="$DATA_DIR/$VOICE.onnx.json"
+if [ -f "$cfg" ]; then
+    if command -v jq >/dev/null 2>&1; then
+        rate="$(jq -r '.audio.sample_rate // 22050' "$cfg" 2>/dev/null || echo 22050)"
+    else
+        rate="$(grep -o '"sample_rate"[[:space:]]*:[[:space:]]*[0-9]*' "$cfg" | grep -o '[0-9]*$' || echo 22050)"
+    fi
+fi
+
+if command -v paplay >/dev/null 2>&1; then
+    piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" --output-raw -- "$text" \
+        | paplay --raw --format=s16le --rate="$rate" --channels=1
+    exit 0
+elif command -v aplay >/dev/null 2>&1; then
+    piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" --output-raw -- "$text" \
+        | aplay -q -r "$rate" -f S16_LE -c 1 -t raw -
+    exit 0
+fi
+
+# Fallback for players that can't read raw stdin (pw-play, ffplay): buffer to a
+# temp WAV whose header carries the rate, then play that.
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" -f "$tmp" -- "$text"
-
-for player in pw-play paplay aplay ffplay; do
+for player in pw-play ffplay; do
     command -v "$player" >/dev/null 2>&1 || continue
     case "$player" in
         ffplay) ffplay -autoexit -nodisp -loglevel quiet "$tmp" ;;
@@ -89,5 +115,5 @@ for player in pw-play paplay aplay ffplay; do
     exit 0
 done
 
-echo "tts: no audio player found (tried pw-play paplay aplay ffplay)." >&2
+echo "tts: no audio player found (tried paplay aplay pw-play ffplay)." >&2
 exit 1
