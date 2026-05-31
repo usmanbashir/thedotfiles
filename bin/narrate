@@ -101,10 +101,18 @@ fi
 
 [ -n "${text//[[:space:]]/}" ] || { echo "narrate: no text given" >&2; exit 2; }
 
-# kokoro-tts loads its model/voices from the current directory, so run it from
-# $KOKORO_DIR; output paths must therefore be absolute.
 opts=(--voice "$VOICE" --lang "$LANG_CODE" --speed "$SPEED")
 
+# kokoro-tts has no quiet flag: it spams status text to stdout and a progress
+# spinner to stderr. Audio always goes to the file or the sound device (never
+# stdout), so capture both streams and only replay them if the run fails —
+# keeps success silent without swallowing real errors.
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+# ---- File output: use the kokoro-tts CLI (handles wav/mp3 encoding) ----------
+# kokoro-tts loads its model/voices from the current directory, so run it from
+# $KOKORO_DIR; output paths must therefore be absolute.
 if [ -n "$OUT" ]; then
     case "$OUT" in
         /*) out_abs="$OUT" ;;
@@ -114,18 +122,48 @@ if [ -n "$OUT" ]; then
         *.mp3) fmt=mp3 ;;
         *)     fmt=wav ;;
     esac
-    args=(- "$out_abs" --format "$fmt" "${opts[@]}")
-else
-    args=(- --stream "${opts[@]}")
+    if ! printf '%s' "$text" \
+        | ( cd "$KOKORO_DIR" && kokoro-tts - "$out_abs" --format "$fmt" "${opts[@]}" ) \
+            >"$log" 2>&1; then
+        cat "$log" >&2
+        exit 1
+    fi
+    exit 0
 fi
 
-# kokoro-tts has no quiet flag: it spams status text to stdout and a progress
-# spinner to stderr. Audio always goes to the file or the sound device (never
-# stdout), so capture both streams and only replay them if the run fails —
-# keeps success silent without swallowing real errors.
-log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
-if ! printf '%s' "$text" | ( cd "$KOKORO_DIR" && kokoro-tts "${args[@]}" ) >"$log" 2>&1; then
+# ---- Streaming playback ------------------------------------------------------
+# Prefer the bundled gapless streamer (kokoro-stream): it generates sentence by
+# sentence with kokoro_onnx and pipes one continuous raw-PCM stream into a
+# single open player, eliminating the per-chunk gaps of `kokoro-tts --stream`.
+# It reuses the kokoro-tts tool venv's Python (which provides kokoro_onnx), so
+# no extra dependencies. Falls back to the CLI if the streamer, that Python, or
+# a raw-capable player (paplay/aplay) isn't available.
+rate=24000  # kokoro_onnx SAMPLE_RATE
+helper="$(dirname "$0")/kokoro-stream"
+venv_python="$(dirname "$(readlink -f "$(command -v kokoro-tts)")")/python"
+
+player=()
+if command -v paplay >/dev/null 2>&1; then
+    player=(paplay --raw --format=s16le --rate="$rate" --channels=1)
+elif command -v aplay >/dev/null 2>&1; then
+    player=(aplay -q -r "$rate" -f S16_LE -c 1 -t raw -)
+fi
+
+if [ -x "$helper" ] && [ -x "$venv_python" ] && [ "${#player[@]}" -gt 0 ]; then
+    if ! printf '%s' "$text" \
+        | "$venv_python" "$helper" \
+            --model "$KOKORO_DIR/kokoro-v1.0.onnx" \
+            --voices "$KOKORO_DIR/voices-v1.0.bin" \
+            "${opts[@]}" 2>"$log" \
+        | "${player[@]}" 2>>"$log"; then
+        cat "$log" >&2
+        exit 1
+    fi
+    exit 0
+fi
+
+# Fallback: kokoro-tts CLI --stream (chunked, small gaps between chunks).
+if ! printf '%s' "$text" | ( cd "$KOKORO_DIR" && kokoro-tts - --stream "${opts[@]}" ) >"$log" 2>&1; then
     cat "$log" >&2
     exit 1
 fi

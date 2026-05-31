@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""kokoro-stream — gapless Kokoro TTS streaming for `narrate`.
+
+Generates audio sentence-by-sentence with kokoro_onnx and writes raw signed
+16-bit little-endian PCM (24 kHz, mono) to stdout, so the caller can pipe it
+into one continuously-open player (`paplay --raw`) for gap-free playback.
+This avoids the kokoro-tts CLI's --stream gaps, which come from opening a new
+sd.play()/sd.wait() per ~paragraph chunk.
+
+Reads UTF-8 text from stdin. Must run under a Python that has kokoro_onnx
+(the kokoro-tts tool venv); `narrate` invokes it with that interpreter.
+The output sample rate is fixed at 24000 Hz (kokoro_onnx SAMPLE_RATE); the
+caller must tell its player the same rate.
+"""
+import argparse
+import re
+import sys
+
+
+def split_sentences(text):
+    """Split text into sentence-ish units at .!? boundaries, whitespace-normalized."""
+    text = " ".join(text.split())
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    return [p for p in (s.strip() for s in parts) if p]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", required=True, help="path to kokoro-v1.0.onnx")
+    parser.add_argument("--voices", required=True, help="path to voices-v1.0.bin")
+    parser.add_argument("--voice", default="af_heart")
+    parser.add_argument("--lang", default="en-us")
+    parser.add_argument("--speed", type=float, default=1.0)
+    args = parser.parse_args()
+
+    try:
+        import numpy as np
+        from kokoro_onnx import Kokoro
+    except ImportError as exc:
+        sys.stderr.write(
+            "kokoro-stream: missing kokoro_onnx/numpy — run me under the "
+            "kokoro-tts venv (narrate does this automatically): %s\n" % exc
+        )
+        return 1
+
+    text = sys.stdin.buffer.read().decode("utf-8", "replace")
+    sentences = split_sentences(text)
+    if not sentences:
+        return 0
+
+    kokoro = Kokoro(args.model, args.voices)
+    out = sys.stdout.buffer
+    try:
+        for sentence in sentences:
+            samples, _ = kokoro.create(
+                sentence, voice=args.voice, speed=args.speed, lang=args.lang
+            )
+            # float32 in [-1, 1] -> signed 16-bit little-endian PCM
+            pcm = (np.clip(samples, -1.0, 1.0) * 32767.0).astype("<i2")
+            out.write(pcm.tobytes())
+            out.flush()
+    except BrokenPipeError:
+        # Player exited (e.g. Ctrl-C) — stop quietly.
+        return 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
