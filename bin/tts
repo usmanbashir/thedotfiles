@@ -10,6 +10,11 @@
 # voice download). Voice models live in $TTS_DATA_DIR.
 set -euo pipefail
 
+# shellcheck source=tts-lib.sh
+. "$(dirname "$(readlink -f "$0")")/tts-lib.sh" || {
+    echo "tts: cannot load tts-lib.sh" >&2; exit 1
+}
+
 VOICE="${TTS_VOICE:-en_US-lessac-high}"
 DATA_DIR="${TTS_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/piper/voices}"
 SPEED="${TTS_SPEED:-1.0}"
@@ -83,27 +88,10 @@ command -v piper >/dev/null 2>&1 || {
     exit 1
 }
 
-# Text from args, else stdin.
-if [ "$#" -gt 0 ]; then
-    text="$*"
-else
-    text="$(cat)"
-fi
-
-# Strip Markdown to plain text unless --raw was given, so syntax like **bold**,
-# # headings and links aren't read aloud. unmd is a sibling script; fall back to
-# PATH, and if it's missing speak the text as-is rather than failing.
-if [ "$RAW" -eq 0 ]; then
-    unmd="$(dirname "$(readlink -f "$0")")/unmd"
-    [ -x "$unmd" ] || unmd=unmd
-    if command -v "$unmd" >/dev/null 2>&1; then
-        text="$(printf '%s' "$text" | "$unmd")"
-    else
-        echo "tts: unmd not found; speaking text as-is (use --raw to silence)" >&2
-    fi
-fi
-
-[ -n "${text//[[:space:]]/}" ] || { echo "tts: no text given" >&2; exit 2; }
+# Text from args (else stdin), Markdown-stripped unless --raw. See tts-lib.sh.
+text="$(tl_read_text tts "$@")"
+text="$(tl_strip_markdown tts "$RAW" "$text")"
+tl_require_text tts "$text"
 
 if [ -n "$OUT" ]; then
     piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" -f "$OUT" -- "$text"
@@ -128,35 +116,30 @@ if [ -f "$cfg" ]; then
 fi
 
 # Pick a raw-capable player (paplay/aplay); pw-play/ffplay can't read raw stdin.
-player=()
-if command -v paplay >/dev/null 2>&1; then
-    player=(paplay --raw --format=s16le --rate="$rate" --channels=1)
-elif command -v aplay >/dev/null 2>&1; then
-    player=(aplay -q -r "$rate" -f S16_LE -c 1 -t raw -)
-fi
+tl_pick_player "$rate"
 
 # Read-along: route through the piper-stream helper, which keeps the model
 # loaded and prints each sentence to the terminal as it's synthesized. Pipe
 # backpressure keeps the text ~1-3s ahead of the audio. Falls through to the
 # plain streaming path if the helper, its venv Python, or a raw player is
 # missing.
-if [ "$SHOW_TEXT" -eq 1 ] && [ "${#player[@]}" -gt 0 ]; then
-    helper="$(dirname "$(readlink -f "$0")")/piper-stream"
-    venv_python="$(dirname "$(readlink -f "$(command -v piper)")")/python"
+if [ "$SHOW_TEXT" -eq 1 ] && [ "${#TL_PLAYER[@]}" -gt 0 ]; then
+    helper="$TL_BIN_DIR/piper-stream"
+    venv_python="$(tl_venv_python piper)"
     model="$DATA_DIR/$VOICE.onnx"
     [ -f "$model" ] || model="$VOICE"
     if [ -x "$helper" ] && [ -x "$venv_python" ]; then
         printf '%s' "$text" \
             | "$venv_python" "$helper" --model "$model" --length-scale "$length_scale" --show-text \
-            | "${player[@]}"
+            | "${TL_PLAYER[@]}"
         exit 0
     fi
     echo "tts: --show-text needs piper-stream + the piper venv; falling back to plain playback." >&2
 fi
 
-if [ "${#player[@]}" -gt 0 ]; then
+if [ "${#TL_PLAYER[@]}" -gt 0 ]; then
     piper -m "$VOICE" --data-dir "$DATA_DIR" --length-scale "$length_scale" --output-raw -- "$text" \
-        | "${player[@]}"
+        | "${TL_PLAYER[@]}"
     exit 0
 fi
 

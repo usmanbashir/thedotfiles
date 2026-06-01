@@ -70,7 +70,9 @@ fi
 echo "Linking bin scripts..."
 mkdir -p "$HOME/.local/bin"
 for script in "$SOURCE_FOLDER"/bin/*; do
-    [ -f "$script" ] || continue
+    # Only link executables — sourced libraries (e.g. tts-lib.sh) aren't commands
+    # and shouldn't land on PATH.
+    [ -f "$script" ] && [ -x "$script" ] || continue
     make_link "$script" "$HOME/.local/bin/$(basename "$script")"
 done
 

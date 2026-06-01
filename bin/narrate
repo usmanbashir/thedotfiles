@@ -12,6 +12,11 @@
 # directory.
 set -euo pipefail
 
+# shellcheck source=tts-lib.sh
+. "$(dirname "$(readlink -f "$0")")/tts-lib.sh" || {
+    echo "narrate: cannot load tts-lib.sh" >&2; exit 1
+}
+
 VOICE="${NARRATE_VOICE:-af_heart}"
 LANG_CODE="${NARRATE_LANG:-en-us}"
 SPEED="${NARRATE_SPEED:-1.0}"
@@ -84,27 +89,14 @@ if [ ! -f "$KOKORO_DIR/kokoro-v1.0.onnx" ] || [ ! -f "$KOKORO_DIR/voices-v1.0.bi
     exit 1
 fi
 
-# Text from args, else stdin.
-if [ "$#" -gt 0 ]; then
-    text="$*"
-else
-    text="$(cat)"
-fi
+# Kokoro hard-limits speed to 0.5-2.0 (asserts otherwise), so clamp with a
+# warning instead of letting it crash with a traceback.
+SPEED="$(tl_clamp_speed narrate "$SPEED" 0.5 2.0)"
 
-# Strip Markdown to plain text unless --raw was given, so syntax like **bold**,
-# # headings and links aren't read aloud. unmd is a sibling script; fall back to
-# PATH, and if it's missing read the text as-is rather than failing.
-if [ "$RAW" -eq 0 ]; then
-    unmd="$(dirname "$(readlink -f "$0")")/unmd"
-    [ -x "$unmd" ] || unmd=unmd
-    if command -v "$unmd" >/dev/null 2>&1; then
-        text="$(printf '%s' "$text" | "$unmd")"
-    else
-        echo "narrate: unmd not found; reading text as-is (use --raw to silence)" >&2
-    fi
-fi
-
-[ -n "${text//[[:space:]]/}" ] || { echo "narrate: no text given" >&2; exit 2; }
+# Text from args (else stdin), Markdown-stripped unless --raw. See tts-lib.sh.
+text="$(tl_read_text narrate "$@")"
+text="$(tl_strip_markdown narrate "$RAW" "$text")"
+tl_require_text narrate "$text"
 
 opts=(--voice "$VOICE" --lang "$LANG_CODE" --speed "$SPEED")
 
@@ -144,28 +136,23 @@ fi
 # no extra dependencies. Falls back to the CLI if the streamer, that Python, or
 # a raw-capable player (paplay/aplay) isn't available.
 rate=24000  # kokoro_onnx SAMPLE_RATE
-helper="$(dirname "$(readlink -f "$0")")/kokoro-stream"
-venv_python="$(dirname "$(readlink -f "$(command -v kokoro-tts)")")/python"
+helper="$TL_BIN_DIR/kokoro-stream"
+venv_python="$(tl_venv_python kokoro-tts)"
 
-player=()
-if command -v paplay >/dev/null 2>&1; then
-    player=(paplay --raw --format=s16le --rate="$rate" --channels=1)
-elif command -v aplay >/dev/null 2>&1; then
-    player=(aplay -q -r "$rate" -f S16_LE -c 1 -t raw -)
-fi
+tl_pick_player "$rate"
 
 # --show-text is a kokoro-stream flag only (the kokoro-tts CLI used for -o and
 # the fallback doesn't accept it), so keep it out of the shared $opts.
 helper_opts=("${opts[@]}")
 [ "$SHOW_TEXT" -eq 1 ] && helper_opts+=(--show-text)
 
-if [ -x "$helper" ] && [ -x "$venv_python" ] && [ "${#player[@]}" -gt 0 ]; then
+if [ -x "$helper" ] && [ -x "$venv_python" ] && [ "${#TL_PLAYER[@]}" -gt 0 ]; then
     if ! printf '%s' "$text" \
         | "$venv_python" "$helper" \
             --model "$KOKORO_DIR/kokoro-v1.0.onnx" \
             --voices "$KOKORO_DIR/voices-v1.0.bin" \
             "${helper_opts[@]}" 2>"$log" \
-        | "${player[@]}" 2>>"$log"; then
+        | "${TL_PLAYER[@]}" 2>>"$log"; then
         cat "$log" >&2
         exit 1
     fi
