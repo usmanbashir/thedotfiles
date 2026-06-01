@@ -95,7 +95,7 @@ fi
 # # headings and links aren't read aloud. unmd is a sibling script; fall back to
 # PATH, and if it's missing read the text as-is rather than failing.
 if [ "$RAW" -eq 0 ]; then
-    unmd="$(dirname "$0")/unmd"
+    unmd="$(dirname "$(readlink -f "$0")")/unmd"
     [ -x "$unmd" ] || unmd=unmd
     if command -v "$unmd" >/dev/null 2>&1; then
         text="$(printf '%s' "$text" | "$unmd")"
@@ -144,7 +144,7 @@ fi
 # no extra dependencies. Falls back to the CLI if the streamer, that Python, or
 # a raw-capable player (paplay/aplay) isn't available.
 rate=24000  # kokoro_onnx SAMPLE_RATE
-helper="$(dirname "$0")/kokoro-stream"
+helper="$(dirname "$(readlink -f "$0")")/kokoro-stream"
 venv_python="$(dirname "$(readlink -f "$(command -v kokoro-tts)")")/python"
 
 player=()

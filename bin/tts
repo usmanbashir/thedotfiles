@@ -94,7 +94,7 @@ fi
 # # headings and links aren't read aloud. unmd is a sibling script; fall back to
 # PATH, and if it's missing speak the text as-is rather than failing.
 if [ "$RAW" -eq 0 ]; then
-    unmd="$(dirname "$0")/unmd"
+    unmd="$(dirname "$(readlink -f "$0")")/unmd"
     [ -x "$unmd" ] || unmd=unmd
     if command -v "$unmd" >/dev/null 2>&1; then
         text="$(printf '%s' "$text" | "$unmd")"
@@ -141,7 +141,7 @@ fi
 # plain streaming path if the helper, its venv Python, or a raw player is
 # missing.
 if [ "$SHOW_TEXT" -eq 1 ] && [ "${#player[@]}" -gt 0 ]; then
-    helper="$(dirname "$0")/piper-stream"
+    helper="$(dirname "$(readlink -f "$0")")/piper-stream"
     venv_python="$(dirname "$(readlink -f "$(command -v piper)")")/python"
     model="$DATA_DIR/$VOICE.onnx"
     [ -f "$model" ] || model="$VOICE"
