@@ -46,6 +46,8 @@ alias sv "sudo nvim"
 
 alias t 'tldr'
 
+alias c claude
+
 alias ta 'tmux attach'
 alias tls 'tmux list-sessions'
 
