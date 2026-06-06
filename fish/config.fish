@@ -169,7 +169,9 @@ alias rr 'curl -s -L https://raw.githubusercontent.com/keroserene/rickrollrc/mas
 
 
 ### ----- Starship prompt -----
-starship init fish | source
+if type -q starship
+    starship init fish | source
+end
 
 ### ----- Better defaults -----
 # Use bat as manpager when available (nice but optional)

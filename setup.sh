@@ -122,6 +122,17 @@ echo "Linking glow config..."
 mkdir -p "$DEST_FOLDER/glow"
 make_link "$SOURCE_FOLDER/glow/glow.yml" "$DEST_FOLDER/glow/glow.yml"
 
+echo "Installing starship..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list starship >/dev/null 2>&1; then
+        brew install starship
+    else
+        echo "starship already installed"
+    fi
+else
+    echo "brew not on PATH — skipping starship install"
+fi
+
 # Local TTS engines for the `tts` (Piper) and `narrate` (Kokoro) bin scripts.
 # Linux-only: macOS has a native `say`, and the engines are CPU/Linux-centric.
 # Both run through uv-managed isolated tool envs pinned to Python 3.12
