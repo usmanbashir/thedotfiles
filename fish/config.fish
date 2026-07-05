@@ -11,8 +11,16 @@ if status is-interactive
 end
 
 ### bling.fish source start
+# Use plain aliases instead of abbreviations so commands like `cat` don't
+# visibly expand (to `bat`, `eza`, `ug`, …) as you type. Our own aliases below
+# then take effect on top.
+set -g BLING_USE_ABBR 0
 test -f /usr/share/ublue-os/bling/bling.fish && source /usr/share/ublue-os/bling/bling.fish
 ### bling.fish source end
+
+# Keep the real grep everywhere — bling aliases grep/egrep/fgrep → ugrep on
+# Bluefin. Use `ug` (or `command ug`) when you want ugrep.
+functions --erase grep egrep fgrep xzgrep xzegrep xzfgrep
 
 # Homebrew shellenv (cross-platform: Linux, macOS Apple Silicon, macOS Intel)
 for brew_path in /home/linuxbrew/.linuxbrew/bin/brew /opt/homebrew/bin/brew /usr/local/bin/brew
@@ -144,16 +152,14 @@ if type -q eza
     alias lte "ll -T"
     alias lt='eza --tree --level=2 --group-directories-first --icons=auto'
     alias lta "lt -a"
+    alias l. 'eza -d .* --icons=auto'                        # hidden entries only
+    alias l1 'eza -1 --icons=auto --group-directories-first'  # one entry per line
 end
 
-# Better cat (bat) — keep plain cat as \cat
+# Better cat (bat); use `rcat` (or `command cat`) for the real cat
+alias rcat='command cat'
 if type -q bat
     alias cat='bat'
-end
-
-# Grep replacement
-if type -q rg
-    alias grep='rg'
 end
 
 ### ----- WSL niceties -----
