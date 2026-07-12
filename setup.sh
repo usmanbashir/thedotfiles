@@ -107,6 +107,21 @@ else
     echo "brew not on PATH — skipping clock-rs install"
 fi
 
+echo "Installing glow..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list glow >/dev/null 2>&1; then
+        brew install glow
+    else
+        echo "glow already installed"
+    fi
+else
+    echo "brew not on PATH — skipping glow install"
+fi
+
+echo "Linking glow config..."
+mkdir -p "$DEST_FOLDER/glow"
+make_link "$SOURCE_FOLDER/glow/glow.yml" "$DEST_FOLDER/glow/glow.yml"
+
 # Local TTS engines for the `tts` (Piper) and `narrate` (Kokoro) bin scripts.
 # Linux-only: macOS has a native `say`, and the engines are CPU/Linux-centric.
 # Both run through uv-managed isolated tool envs pinned to Python 3.12

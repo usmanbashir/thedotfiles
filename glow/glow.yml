@@ -1,0 +1,13 @@
+# style name or JSON path (default "auto")
+style: "auto"
+# mouse support (TUI-mode only)
+# Off: doesn't work under tmux, and enabling it costs click-drag text selection.
+mouse: false
+# use pager to display markdown
+pager: true
+# word-wrap at width
+# Left unset on purpose: glow's default is a hard wrap at 80, whereas an unset
+# width fills the terminal instead (capped at glow's internal 120-col maximum).
+#width: 80
+# show all files, including hidden and ignored.
+all: false
