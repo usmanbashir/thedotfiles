@@ -354,7 +354,8 @@ return {
   },
 
   {
-    'lewis6991/gitsigns.nvim'
+    'lewis6991/gitsigns.nvim',
+    config = function() require('config/gitsigns') end,
   },
 
   {
@@ -386,9 +387,5 @@ return {
     opts = {
       signs = false,
     },
-  },
-
-  {
-    'tpope/vim-rails'
   },
 }

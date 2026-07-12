@@ -67,6 +67,15 @@ require('telescope').setup({
         },
       },
     },
+    git_status = {
+      layout_strategy = "vertical",
+      layout_config = {
+        vertical = {
+          width = 0.7,
+          preview_height = 0.5,
+        },
+      },
+    },
     spell_suggest = {
       layout_strategy = "vertical",
       layout_config = {
