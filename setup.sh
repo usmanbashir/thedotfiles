@@ -133,6 +133,17 @@ else
     echo "brew not on PATH — skipping starship install"
 fi
 
+echo "Installing zoxide..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list zoxide >/dev/null 2>&1; then
+        brew install zoxide
+    else
+        echo "zoxide already installed"
+    fi
+else
+    echo "brew not on PATH — skipping zoxide install"
+fi
+
 # Local TTS engines for the `tts` (Piper) and `narrate` (Kokoro) bin scripts.
 # Linux-only: macOS has a native `say`, and the engines are CPU/Linux-centric.
 # Both run through uv-managed isolated tool envs pinned to Python 3.12
