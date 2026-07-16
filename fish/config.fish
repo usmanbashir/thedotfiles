@@ -93,11 +93,55 @@ alias gcm "git commit -m"
 alias gd "git diff"
 alias gdd "git diff --cached"
 alias gp "git push"
-alias gu "git rev-list --count @{u}..HEAD"
-alias gul "git log --oneline @{u}..HEAD"
-alias guf "git diff --stat @{u}..HEAD"
-alias gur "git log --reverse -p --stat --no-merges @{u}..HEAD"
-alias gmr "git log --reverse -p --stat --no-merges main..HEAD"
+# The remote's default branch as a remote-tracking ref, e.g. origin/main. The
+# origin/main fallback covers clones that never set origin/HEAD, and makes these
+# degrade to their old hardcoded behaviour (fix a repo: git remote set-head origin -a).
+# --verify --quiet matters: a plain `rev-parse --abbrev-ref origin/HEAD` echoes
+# "origin/HEAD" back on stdout when the ref is unset, which would sail past an
+# emptiness check and become a bogus revision.
+function __git_default_remote_branch
+    set -l head (git rev-parse --abbrev-ref --verify --quiet origin/HEAD 2>/dev/null)
+    test -n "$head"; or set head origin/main
+    echo $head
+end
+
+# The same branch as a local ref, e.g. main.
+function __git_default_branch
+    string replace -r '^origin/' '' -- (__git_default_remote_branch)
+end
+
+# gu* compare HEAD against the branch's upstream. A branch that hasn't been
+# `push -u`'d has no @{u} at all, so fall back to the default branch — otherwise
+# these die with "no upstream configured for branch 'x'".
+function __gu_base
+    set -l base (git rev-parse --abbrev-ref --symbolic-full-name --verify --quiet @{u} 2>/dev/null)
+    test -n "$base"; or set base (__git_default_remote_branch)
+    echo $base
+end
+
+function gu --wraps 'git rev-list'
+    git rev-list --count (__gu_base)..HEAD $argv
+end
+
+function gul --wraps 'git log'
+    git log --oneline (__gu_base)..HEAD $argv
+end
+
+function guf --wraps 'git diff'
+    git diff --stat (__gu_base)..HEAD $argv
+end
+
+function gur --wraps 'git log'
+    git log --reverse -p --stat --no-merges (__gu_base)..HEAD $argv
+end
+
+# Reviews the whole branch against the default branch. Uses __git_default_branch,
+# not __gu_base: gmr should ignore @{u} entirely, or it would compare a pushed
+# branch against itself and show nothing.
+function gmr --wraps 'git log'
+    git log --reverse -p --stat --no-merges (__git_default_branch)..HEAD $argv
+end
+
 alias gpl "git pull"
 alias gpf "gp --force"
 alias gph "git push heroku master"
