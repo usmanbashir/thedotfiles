@@ -54,32 +54,6 @@ alias sv "sudo nvim"
 
 alias t 'tldr'
 
-# Claude: c<model><effort>, where effort is 1..5 = low medium high xhigh max.
-# e.g. co5 = Opus at max effort, cs3 = Sonnet at high.
-# Functions rather than aliases: fish's `alias` evals a function definition
-# (~1.1ms each), which would be ~24ms of shell startup for this set.
-function c --wraps claude
-    claude $argv
-end
-
-for m in o:opus s:sonnet f:fable
-    set -l mp (string split : $m)
-    function c$mp[1] --inherit-variable mp --wraps claude
-        claude --model $mp[2] $argv
-    end
-    for e in 1:low 2:medium 3:high 4:xhigh 5:max
-        set -l ep (string split : $e)
-        function c$mp[1]$ep[1] --inherit-variable mp --inherit-variable ep --wraps claude
-            claude --model $mp[2] --effort $ep[2] $argv
-        end
-    end
-end
-
-# Haiku supports no effort levels — --effort is silently downgraded, so no ch1..ch5.
-function ch --wraps claude
-    claude --model haiku $argv
-end
-
 alias ta 'tmux attach'
 alias tls 'tmux list-sessions'
 
