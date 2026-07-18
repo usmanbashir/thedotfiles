@@ -144,6 +144,26 @@ else
     echo "brew not on PATH — skipping zoxide install"
 fi
 
+echo "Installing clau..."
+if command -v brew >/dev/null 2>&1; then
+    if ! brew list --cask clau >/dev/null 2>&1; then
+        brew install --cask usmanbashir/tap/clau
+    else
+        echo "clau already installed"
+    fi
+else
+    echo "brew not on PATH — skipping clau install"
+fi
+
+echo "Configuring clau..."
+if command -v clau >/dev/null 2>&1; then
+    clau link
+    mkdir -p "$DEST_FOLDER/fish/conf.d"
+    clau completions fish > "$DEST_FOLDER/fish/conf.d/clau.fish"
+else
+    echo "clau not on PATH — skipping clau link/completions"
+fi
+
 # Local TTS engines for the `tts` (Piper) and `narrate` (Kokoro) bin scripts.
 # Linux-only: macOS has a native `say`, and the engines are CPU/Linux-centric.
 # Both run through uv-managed isolated tool envs pinned to Python 3.12
