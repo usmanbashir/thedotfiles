@@ -189,8 +189,16 @@ end
 
 
 ### ----- zoxide (smart 'cd') -----
-if type -q zoxide; and not functions -q __zoxide_z
-    zoxide init fish | source
+if type -q zoxide
+    # On Bluefin, bling.fish (sourced above) has already run this, so only
+    # initialise when nothing else has.
+    functions -q __zoxide_z; or zoxide init fish | source
+
+    # zoxide's hook is `--on-variable PWD`, which only fires when PWD *changes*,
+    # so the directory a shell starts in is never recorded. tmux windows, splits
+    # and `tn` sessions all start fish in an inherited directory, which would
+    # leave those directories permanently invisible to `z`.
+    test -z "$fish_private_mode"; and zoxide add -- $PWD
 end
 
 # ls replacement (eza) with a couple variants
