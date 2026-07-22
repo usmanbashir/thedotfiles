@@ -105,15 +105,20 @@ function guf --wraps 'git diff'
     git diff --stat (__gu_base)..HEAD $argv
 end
 
+# The LESS on gur/gmr puts a "lines 22-43/979 3%" progress readout in the pager,
+# so a long review shows how much is left. M is the long prompt; --file-size makes
+# less size the input up front, which it can't do for a pipe otherwise, so the
+# percentage has a total to count against (needs less >= 590). FRX are the defaults
+# git sets for us, but only when LESS is unset, so repeat them here.
 function gur --wraps 'git log'
-    git log --reverse -p --stat --no-merges (__gu_base)..HEAD $argv
+    LESS='-FRXM --file-size' git log --reverse -p --stat --no-merges (__gu_base)..HEAD $argv
 end
 
 # Reviews the whole branch against the default branch. Uses __git_default_branch,
 # not __gu_base: gmr should ignore @{u} entirely, or it would compare a pushed
 # branch against itself and show nothing.
 function gmr --wraps 'git log'
-    git log --reverse -p --stat --no-merges (__git_default_branch)..HEAD $argv
+    LESS='-FRXM --file-size' git log --reverse -p --stat --no-merges (__git_default_branch)..HEAD $argv
 end
 
 alias gpl "git pull"
