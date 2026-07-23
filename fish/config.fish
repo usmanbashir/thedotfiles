@@ -1,5 +1,4 @@
 set fish_greeting			        # Supresses intro message
-set -U TERM xterm-256color		# Not sure I need to set the terninal type
 
 # Editor (change to nvim/vim/code as you like)
 set -gx EDITOR nvim
