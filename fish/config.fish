@@ -53,7 +53,6 @@ alias sv "sudo nvim"
 
 alias t 'tldr'
 
-alias ta 'tmux attach'
 alias tls 'tmux list-sessions'
 
 # Git Shortcuts
@@ -267,6 +266,22 @@ function tn --argument name
     tmux switch-client -t "=$name"
   else
     tmux new-session -A -s $name
+  end
+end
+
+# Attach to an existing tmux session, or switch to it when already inside tmux.
+# Unlike `tn`, never creates one, so a typo is an error rather than a stray
+# empty session. With no argument, goes to the last session.
+# Was `alias ta 'tmux attach'`, which could not take a name at all: fish
+# appends $argv, and attach-session takes no positional arguments.
+function ta --argument name
+  set -l target
+  test -n "$name"; and set target -t "=$name"
+  if set -q TMUX
+    test -z "$name"; and set target -l
+    tmux switch-client $target
+  else
+    tmux attach $target
   end
 end
 
