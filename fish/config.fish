@@ -255,10 +255,19 @@ function gccd --argument repo
   git clone $repo && cd (basename $repo | cut -d. -f1)
 end
 
-# Start or attach to a tmux session; defaults to the current directory's name.
+# Start, attach to, or switch to a tmux session; defaults to the current
+# directory's name. Inside tmux, attaching would nest, so create the session
+# detached and switch the client to it instead.
+# Targets are matched with a leading `=` for exactness: tmux resolves plain
+# targets by prefix, so `-t work` would find an existing `workspace` session.
 function tn --argument name
   test -z "$name"; and set name (basename $PWD | string replace -ra '[.:\s]' '_')
-  tmux new-session -A -s $name
+  if set -q TMUX
+    tmux has-session -t "=$name" 2>/dev/null; or tmux new-session -d -s $name
+    tmux switch-client -t "=$name"
+  else
+    tmux new-session -A -s $name
+  end
 end
 
 # Run `claude -p` and append the query, response, and duration to a log.
