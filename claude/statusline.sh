@@ -23,15 +23,33 @@ pct_color() {
   fi
 }
 
+# Format a token count: whole thousands with a k suffix at >=1000, raw below
+fmt_tokens() {
+  local val=$1
+  if [ "$val" -ge 1000 ]; then
+    printf '%dk' $(( (val + 500) / 1000 ))
+  else
+    printf '%d' "$val"
+  fi
+}
+
 model=$(echo "$input" | jq -r '.model.display_name // ""')
 
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
-# Build context segment: dim label, colored value
+# Build context segment: dim label, colored percentage, dim token count.
+# total_input_tokens is the numerator behind used_percentage (input + cache
+# reads + cache writes), so the two can never disagree. It is omitted rather
+# than guessed at if the payload lacks it or carries something non-numeric.
 ctx_segment=""
 if [ -n "$used" ]; then
   used_int=$(printf '%.0f' "$used")
   ctx_segment="${DIM}ctx:${RESET}$(pct_color "$used_int")"
+  tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty')
+  case "${tokens%.*}" in
+    '' | *[!0-9]*) ;;
+    *) ctx_segment="${ctx_segment}${DIM} ($(fmt_tokens "${tokens%.*}"))${RESET}" ;;
+  esac
 fi
 
 # Build cost segment: no coloring, plain value
