@@ -119,6 +119,24 @@ function gmr --wraps 'git log'
     LESS='-FRXM --file-size' git log --reverse -p --stat --no-merges (__git_default_branch)..HEAD $argv
 end
 
+# Opens every file with unstaged changes plus every untracked file in nvim, for
+# review before staging. Fully staged files are left out. ls-files -m lists
+# deleted files too, so test -f drops them (nvim would open an empty buffer).
+# Run from the repo root and -z/split0 so it finds files outside the current
+# subdirectory and survives odd filenames. Extra args go to nvim: `gv -p` for tabs.
+function gv
+    set -l root (git rev-parse --show-toplevel); or return
+    set -l files
+    for f in (git -C $root ls-files -z --modified --others --exclude-standard --deduplicate | string split0)
+        test -f "$root/$f"; and set -a files "$root/$f"
+    end
+    if test (count $files) -eq 0
+        echo "gv: no unstaged or untracked files"
+        return 1
+    end
+    nvim $argv $files
+end
+
 alias gpl "git pull"
 alias gpf "gp --force"
 alias gph "git push heroku master"
